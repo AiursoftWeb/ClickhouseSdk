@@ -1,7 +1,6 @@
 using Aiursoft.ClickhouseSdk;
 using Aiursoft.ClickhouseSdk.Abstractions;
 using ClickHouse.Client.ADO;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Aiursoft.ClickhouseLoggerProvider;
