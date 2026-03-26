@@ -9,8 +9,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="ClickHouse.Client" Version="7.14.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
     <PackageReference Include="coverlet.collector" Version="8.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -21,7 +19,6 @@
     <PackageReference Include="MSTest.TestAdapter" Version="4.1.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Aiursoft.ClickhouseSdk\Aiursoft.ClickhouseSdk.csproj" />
     <ProjectReference Include="..\..\src\Aiursoft.ClickhouseLoggerProvider\Aiursoft.ClickhouseLoggerProvider.csproj" />
   </ItemGroup>
 </Project>
