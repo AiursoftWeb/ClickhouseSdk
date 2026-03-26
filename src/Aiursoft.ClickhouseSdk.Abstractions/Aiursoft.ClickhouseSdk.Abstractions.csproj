@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <Version>10.0.7</Version>
+    <Version>10.0.10</Version>
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>Aiursoft.ClickhouseSdk.Abstractions</AssemblyName>
     <RootNamespace>Aiursoft.ClickhouseSdk.Abstractions</RootNamespace>
@@ -11,15 +11,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Company>Aiursoft</Company>
-    <Product>ClickhouseSdk</Product>
-    <Authors>anduin</Authors>
-    <Description>Automatic dependencies management system which powers Aiursoft</Description>
+    <Product>Abstractions</Product>
+    <Authors>Aiursoft</Authors>
+    <Description>Provides shared abstractions, configuration options, and connection utilities for the Aiursoft ClickHouse SDK.</Description>
     <PackageId>Aiursoft.ClickhouseSdk.Abstractions</PackageId>
-    <PackageTags>dependencies injection clickhouseSdk</PackageTags>
+    <PackageTags>clickhouse sdk abstractions database clickhouse-client aiursoft</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://gitlab.aiursoft.com/aiursoft/clickhouseSdk</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/AiursoftWeb/ClickhouseSdk</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://gitlab.aiursoft.com/aiursoft/clickhouseSdk</RepositoryUrl>
+    <RepositoryUrl>https://github.com/AiursoftWeb/ClickhouseSdk.git</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
