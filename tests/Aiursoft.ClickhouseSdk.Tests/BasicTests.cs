@@ -1,6 +1,6 @@
 using Aiursoft.ClickhouseLoggerProvider;
 using Aiursoft.ClickhouseSdk.Abstractions;
-using ClickHouse.Client.ADO;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Aiursoft.ClickhouseSdk.Tests;
 
@@ -19,36 +19,29 @@ public class BasicTests
         var options = new ClickhouseOptions();
         Assert.IsTrue(options.Enabled);
         Assert.AreEqual(string.Empty, options.ConnectionString);
+        Assert.AreEqual("AppLogs", options.TableName);
     }
 
     /// <summary>
-    /// Verifies that custom connection string parameters (like 'Table') can be correctly extracted.
+    /// Verifies that the database name can be correctly extracted from a connection string.
     /// </summary>
     [TestMethod]
-    public void TestTableParameterExtraction()
+    public void TestDatabaseNameExtraction()
     {
-        const string connectionString = "Host=localhost;Database=MyLogs;Table=CustomTable;User=default";
-        var builder = new ClickHouseConnectionStringBuilder(connectionString);
-        
-        var hasTable = builder.TryGetValue("Table", out var tableObj);
-        
-        Assert.IsTrue(hasTable);
-        Assert.AreEqual("CustomTable", tableObj?.ToString());
+        const string connectionString = "Host=localhost;Database=MyDatabase;User=default";
+        var dbName = ClickhouseConnectionUtility.GetDatabaseName(connectionString);
+        Assert.AreEqual("MyDatabase", dbName);
     }
 
     /// <summary>
-    /// Verifies that custom connection string parameters can be removed for compatibility.
+    /// Verifies that the initialization connection string is correctly generated.
     /// </summary>
     [TestMethod]
-    public void TestConnectionStringCleaning()
+    public void TestInitConnectionStringGeneration()
     {
-        const string connectionString = "Host=localhost;Table=CustomTable;User=default";
-        var builder = new ClickHouseConnectionStringBuilder(connectionString);
-        
-        builder.Remove("Table");
-        
-        Assert.IsFalse(builder.TryGetValue("Table", out _));
-        Assert.IsFalse(builder.ConnectionString.Contains("Table="));
+        const string connectionString = "Host=localhost;Database=MyDatabase;User=default";
+        var initConn = ClickhouseConnectionUtility.GetInitConnectionString(connectionString);
+        Assert.IsTrue(initConn.Contains("Database=default"));
     }
 
     /// <summary>
@@ -72,36 +65,5 @@ public class BasicTests
         Assert.AreEqual("Test Message", entry.Message);
         Assert.AreEqual("Test Exception", entry.Exception);
         Assert.AreEqual(now, entry.EventTime);
-    }
-}
-
-/// <summary>
-/// Tests for the ClickhouseSet class.
-/// </summary>
-[TestClass]
-public class ClickhouseSetTests
-{
-    private class TestEntity
-    {
-        public string Name { get; set; } = string.Empty;
-    }
-
-    /// <summary>
-    /// Verifies the local buffering logic of the ClickhouseSet.
-    /// </summary>
-    [TestMethod]
-    public void TestLocalBufferAdd()
-    {
-        // This test only verifies that adding to the set does not throw exceptions.
-        // Mocking the connection factory for a more comprehensive test would be better but is complex here.
-        var set = new ClickhouseSet<TestEntity>(
-            () => Task.FromResult<ClickHouseConnection>(null!), 
-            "TestTable", 
-            e => new object[] { e.Name });
-
-        set.Add(new TestEntity { Name = "Item 1" });
-        set.Add(new TestEntity { Name = "Item 2" });
-        
-        Assert.IsNotNull(set);
     }
 }

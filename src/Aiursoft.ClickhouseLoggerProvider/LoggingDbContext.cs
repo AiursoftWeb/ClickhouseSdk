@@ -1,6 +1,5 @@
 using Aiursoft.ClickhouseSdk;
 using Aiursoft.ClickhouseSdk.Abstractions;
-using ClickHouse.Client.ADO;
 using Microsoft.Extensions.Options;
 
 namespace Aiursoft.ClickhouseLoggerProvider;
@@ -22,12 +21,7 @@ public class LoggingDbContext : ClickhouseDbContext
     public LoggingDbContext(IOptionsMonitor<ClickhouseOptions> options) 
         : base(options)
     {
-        var builder = new ClickHouseConnectionStringBuilder(options.CurrentValue.ConnectionString);
-        var tableName = builder.TryGetValue("Table", out var tableObj) 
-            ? tableObj.ToString() 
-            : "Logs";
-
-        Logs = new ClickhouseSet<LogEntry>(GetConnection, tableName!, log => new object[] 
+        Logs = new ClickhouseSet<LogEntry>(GetConnection, options.CurrentValue.TableName, log => new object[] 
         {
             log.EventTime,
             log.LogLevel,

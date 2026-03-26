@@ -7,10 +7,14 @@ public class ClickhouseOptions
 {
     /// <summary>
     /// Gets or sets the connection string. 
-    /// Support custom parameters: 'Table' to specify the target table name.
-    /// Example: Host=localhost;Protocol=http;Port=8123;Database=MyLogs;Table=AppLogs
+    /// Example: Host=localhost;Protocol=http;Port=8123;Database=MyLogs
     /// </summary>
     public string ConnectionString { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the default table name to use.
+    /// </summary>
+    public string TableName { get; set; } = "AppLogs";
 
     /// <summary>
     /// Gets or sets a value indicating whether ClickHouse logging is enabled.

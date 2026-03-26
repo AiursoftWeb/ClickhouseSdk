@@ -10,10 +10,10 @@ A high-performance, textbook-grade ClickHouse integration suite for .NET applica
 
 ## Key Features
 
-- **One Connection String Configuration**: Configure host, port, database, and target table all within a single connection string.
 - **Automatic Schema Management**: Automatically creates databases and tables. Supports schema evolution (automatically adds missing columns).
 - **High-Performance Bulk Writing**: Uses `ClickHouseBulkCopy` for asynchronous, non-blocking batch uploads.
 - **Background Log Flushing**: Buffered logging with background flushing to ensure zero impact on application performance.
+- **Clean Configuration**: Standard ClickHouse connection strings. Table names are managed through code or configuration.
 
 ## Project 1: Aiursoft.ClickhouseSdk (Core SDK)
 
@@ -44,6 +44,7 @@ public class MyDbContext : ClickhouseDbContext
     public MyDbContext(IOptionsMonitor<ClickhouseOptions> options) : base(options)
     {
         // Define the mapping from your entity to ClickHouse row objects
+        // You can have multiple sets mapping to different tables in the same database!
         MyEntities = new ClickhouseSet<MyEntity>(GetConnection, "MyTableName", entity => new object[] 
         {
             entity.Id,
@@ -60,10 +61,11 @@ public class MyDbContext : ClickhouseDbContext
 ```
 
 3. **Initialize the Schema**:
-   Call `InitClickhouseTableAsync<T>` during application startup to ensure the database and table exist.
+   Call `InitClickhouseTableAsync<T>` during application startup.
 
 ```csharp
-await host.Services.InitClickhouseTableAsync<MyEntity>("CreatedAt"); // ORDER BY column
+// This will ensure 'MyTableName' exists in the database defined in your connection string.
+await host.Services.InitClickhouseTableAsync<MyEntity>("MyTableName", "CreatedAt"); // Table name and ORDER BY column
 ```
 
 ---
@@ -85,9 +87,8 @@ Register the provider in your application builder.
 ```csharp
 builder.Logging.AddClickhouse(options => 
 {
-    // Configure EVERYTHING in one string!
-    // Database 'MyLogs' and Table 'AppLogs' will be created automatically.
-    options.ConnectionString = "Host=localhost;Protocol=http;Port=8123;User=default;Password=password;Database=MyLogs;Table=AppLogs";
+    options.ConnectionString = "Host=localhost;Protocol=http;Port=8123;User=default;Password=password;Database=MyLogs";
+    options.TableName = "AppLogs"; // Optional, defaults to "AppLogs"
 });
 ```
 
@@ -97,14 +98,6 @@ Ensure the logging table is initialized at startup.
 
 ```csharp
 await host.Services.InitLoggingTableAsync();
-```
-
-### Usage
-
-Just use the standard `ILogger` as usual. Logs are buffered and flushed to ClickHouse every 2 seconds in the background.
-
-```csharp
-logger.LogInformation("Hello ClickHouse!");
 ```
 
 ## How to Contribute

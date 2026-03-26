@@ -3,6 +3,7 @@ using Aiursoft.ClickhouseSdk.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Aiursoft.ClickhouseLoggerProvider;
 
@@ -32,6 +33,7 @@ public static class LoggingExtensions
     /// <returns>A task representing the asynchronous operation.</returns>
     public static async Task InitLoggingTableAsync(this IServiceProvider provider)
     {
-        await provider.InitClickhouseTableAsync<LogEntry>("EventTime");
+        var options = provider.GetRequiredService<IOptionsMonitor<ClickhouseOptions>>();
+        await provider.InitClickhouseTableAsync<LogEntry>(options.CurrentValue.TableName, "EventTime");
     }
 }

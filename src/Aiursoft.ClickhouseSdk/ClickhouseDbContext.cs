@@ -28,16 +28,14 @@ public abstract class ClickhouseDbContext : IAsyncDisposable, IDisposable
     }
 
     /// <summary>
-    /// Opens or returns an existing connection to ClickHouse, stripping custom connection string parameters.
+    /// Opens or returns an existing connection to ClickHouse.
     /// </summary>
     /// <returns>A connected <see cref="ClickHouseConnection"/>.</returns>
     protected async Task<ClickHouseConnection> GetConnection()
     {
         if (_connection == null)
         {
-            var builder = new ClickHouseConnectionStringBuilder(_config.ConnectionString);
-            builder.Remove("Table"); // Remove custom parameter for driver compatibility
-            _connection = new ClickHouseConnection(builder.ConnectionString);
+            _connection = new ClickHouseConnection(_config.ConnectionString);
             await _connection.OpenAsync();
         }
         return _connection;

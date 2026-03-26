@@ -17,9 +17,10 @@ public static class ClickhouseExtensions
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>
     /// <param name="serviceProvider">The DI service provider.</param>
+    /// <param name="tableName">The name of the target table.</param>
     /// <param name="orderByColumn">The column name used for ORDER BY in the MergeTree engine.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public static async Task InitClickhouseTableAsync<T>(this IServiceProvider serviceProvider, string orderByColumn)
+    public static async Task InitClickhouseTableAsync<T>(this IServiceProvider serviceProvider, string tableName, string orderByColumn)
     {
         var options = serviceProvider.GetRequiredService<IOptionsMonitor<ClickhouseOptions>>();
         var logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("ClickhouseInitializer");
@@ -29,33 +30,22 @@ public static class ClickhouseExtensions
             return;
         }
 
-        var connectionStringBuilder = new ClickHouseConnectionStringBuilder(options.CurrentValue.ConnectionString);
-        var targetDatabase = connectionStringBuilder.Database;
-        var tableName = connectionStringBuilder.TryGetValue("Table", out var tableObj) 
-            ? tableObj.ToString() 
-            : "Logs";
+        var connectionString = options.CurrentValue.ConnectionString;
+        var targetDatabase = ClickhouseConnectionUtility.GetDatabaseName(connectionString);
 
         try
         {
             // Step 1: Ensure database exists.
-            var initBuilder = new ClickHouseConnectionStringBuilder(options.CurrentValue.ConnectionString);
-            initBuilder.Remove("Table");
-
-            if (!string.IsNullOrEmpty(targetDatabase))
-            {
-                initBuilder.Database = "default";
-                await using var initConnection = new ClickHouseConnection(initBuilder.ConnectionString);
-                await initConnection.OpenAsync();
-                await using var dbCommand = initConnection.CreateCommand();
-                dbCommand.CommandText = $"CREATE DATABASE IF NOT EXISTS {targetDatabase}";
-                await dbCommand.ExecuteNonQueryAsync();
-                logger.LogInformation("Database '{DatabaseName}' checked/created.", targetDatabase);
-            }
+            var initConnectionString = ClickhouseConnectionUtility.GetInitConnectionString(connectionString);
+            await using var initConnection = new ClickHouseConnection(initConnectionString);
+            await initConnection.OpenAsync();
+            await using var dbCommand = initConnection.CreateCommand();
+            dbCommand.CommandText = $"CREATE DATABASE IF NOT EXISTS {targetDatabase}";
+            await dbCommand.ExecuteNonQueryAsync();
+            logger.LogInformation("Database '{DatabaseName}' checked/created.", targetDatabase);
 
             // Step 2: Initialize table.
-            var tableInitBuilder = new ClickHouseConnectionStringBuilder(options.CurrentValue.ConnectionString);
-            tableInitBuilder.Remove("Table");
-            await using var connection = new ClickHouseConnection(tableInitBuilder.ConnectionString);
+            await using var connection = new ClickHouseConnection(connectionString);
             await connection.OpenAsync();
             
             var properties = typeof(T).GetProperties();
