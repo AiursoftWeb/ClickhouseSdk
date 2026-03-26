@@ -47,7 +47,7 @@ public class UtilityTests
     [DataRow(typeof(bool), "UInt8")]
     public void TestTypeMapping(Type type, string expected)
     {
-        var result = ClickhouseExtensions.MapClrTypeToChType(type);
+        var result = ClickhouseTypeMapper.MapClrTypeToChType(type);
         Assert.AreEqual(expected, result);
     }
 }
@@ -121,9 +121,9 @@ public class ClickhouseSetTests
         { 
             await set.SaveChangesAsync(); 
         } 
-        catch (NullReferenceException) 
+        catch (ArgumentNullException) 
         { 
-            // Expected since factory returns null
+            // Expected since factory returns null and ClickHouseBulkCopy ctor validates it
         }
 
         Assert.IsTrue(connFactoryCalled);

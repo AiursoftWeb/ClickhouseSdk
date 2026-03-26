@@ -53,7 +53,7 @@ public static class ClickhouseExtensions
 
             foreach (var prop in properties)
             {
-                var chType = MapClrTypeToChType(prop.PropertyType);
+                var chType = ClickhouseTypeMapper.MapClrTypeToChType(prop.PropertyType);
                 columns.Add($"{prop.Name} {chType}");
             }
 
@@ -72,7 +72,7 @@ public static class ClickhouseExtensions
             // Step 3: Schema evolution - check for missing columns.
             foreach (var prop in properties)
             {
-                var chType = MapClrTypeToChType(prop.PropertyType);
+                var chType = ClickhouseTypeMapper.MapClrTypeToChType(prop.PropertyType);
                 var alterSql = $"ALTER TABLE {tableName} ADD COLUMN IF NOT EXISTS {prop.Name} {chType}";
                 await using var command = connection.CreateCommand();
                 command.CommandText = alterSql;
@@ -85,23 +85,5 @@ public static class ClickhouseExtensions
         {
             logger.LogError(e, "Failed to initialize Clickhouse table.");
         }
-    }
-
-    public static string MapClrTypeToChType(Type type)
-    {
-        return type switch
-        {
-            _ when type == typeof(string) => "String",
-            _ when type == typeof(int) => "Int32",
-            _ when type == typeof(uint) => "UInt32",
-            _ when type == typeof(long) => "Int64",
-            _ when type == typeof(ulong) => "UInt64",
-            _ when type == typeof(float) => "Float32",
-            _ when type == typeof(double) => "Float64",
-            _ when type == typeof(bool) => "UInt8",
-            _ when type == typeof(DateTime) => "DateTime",
-            _ when type == typeof(Guid) => "UUID",
-            _ => "String"
-        };
     }
 }
