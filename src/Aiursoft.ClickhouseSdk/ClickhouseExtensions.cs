@@ -87,7 +87,7 @@ public static class ClickhouseExtensions
         }
     }
 
-    private static string MapClrTypeToChType(Type type)
+    public static string MapClrTypeToChType(Type type)
     {
         return type switch
         {

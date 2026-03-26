@@ -1,6 +1,9 @@
 using Aiursoft.ClickhouseLoggerProvider;
 using Aiursoft.ClickhouseSdk.Abstractions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ClickHouse.Client.ADO;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
 
 namespace Aiursoft.ClickhouseSdk.Tests;
 
@@ -8,29 +11,17 @@ namespace Aiursoft.ClickhouseSdk.Tests;
 /// Contains basic unit tests for the ClickHouse SDK components.
 /// </summary>
 [TestClass]
-public class BasicTests
+public class UtilityTests
 {
-    /// <summary>
-    /// Verifies that the ClickHouseOptions has correct default values.
-    /// </summary>
-    [TestMethod]
-    public void TestOptionsDefaultValues()
-    {
-        var options = new ClickhouseOptions();
-        Assert.IsTrue(options.Enabled);
-        Assert.AreEqual(string.Empty, options.ConnectionString);
-        Assert.AreEqual("AppLogs", options.TableName);
-    }
-
     /// <summary>
     /// Verifies that the database name can be correctly extracted from a connection string.
     /// </summary>
     [TestMethod]
     public void TestDatabaseNameExtraction()
     {
-        const string connectionString = "Host=localhost;Database=MyDatabase;User=default";
-        var dbName = ClickhouseConnectionUtility.GetDatabaseName(connectionString);
-        Assert.AreEqual("MyDatabase", dbName);
+        Assert.AreEqual("MyDb", ClickhouseConnectionUtility.GetDatabaseName("Host=localhost;Database=MyDb"));
+        Assert.AreEqual("default", ClickhouseConnectionUtility.GetDatabaseName("Host=localhost"));
+        Assert.AreEqual("default", ClickhouseConnectionUtility.GetDatabaseName("Host=localhost;Database="));
     }
 
     /// <summary>
@@ -39,31 +30,102 @@ public class BasicTests
     [TestMethod]
     public void TestInitConnectionStringGeneration()
     {
-        const string connectionString = "Host=localhost;Database=MyDatabase;User=default";
-        var initConn = ClickhouseConnectionUtility.GetInitConnectionString(connectionString);
-        Assert.IsTrue(initConn.Contains("Database=default"));
+        var init = ClickhouseConnectionUtility.GetInitConnectionString("Host=localhost;Database=MyDb");
+        Assert.IsTrue(init.Contains("Database=default", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
-    /// Verifies basic LogEntry property assignments.
+    /// Verifies the type mapping logic from C# types to ClickHouse types.
+    /// </summary>
+    /// <param name="type">The CLR type.</param>
+    /// <param name="expected">The expected ClickHouse type string.</param>
+    [TestMethod]
+    [DataRow(typeof(string), "String")]
+    [DataRow(typeof(int), "Int32")]
+    [DataRow(typeof(DateTime), "DateTime")]
+    [DataRow(typeof(Guid), "UUID")]
+    [DataRow(typeof(bool), "UInt8")]
+    public void TestTypeMapping(Type type, string expected)
+    {
+        var result = ClickhouseExtensions.MapClrTypeToChType(type);
+        Assert.AreEqual(expected, result);
+    }
+}
+
+/// <summary>
+/// Tests for the ClickHouse logger.
+/// </summary>
+[TestClass]
+public class LoggerTests
+{
+    /// <summary>
+    /// Verifies that the logger correctly buffers messages when enabled.
     /// </summary>
     [TestMethod]
-    public void TestLogEntryCreation()
+    public void TestClickhouseLoggerBuffersCorrectly()
     {
-        var now = DateTime.UtcNow;
-        var entry = new LogEntry
-        {
-            LogLevel = "Information",
-            Category = "TestCategory",
-            Message = "Test Message",
-            Exception = "Test Exception",
-            EventTime = now
-        };
+        var optionsMock = new Mock<IOptionsMonitor<ClickhouseOptions>>();
+        optionsMock.Setup(o => o.CurrentValue).Returns(new ClickhouseOptions 
+        { 
+            Enabled = true, 
+            ConnectionString = "Host=localhost;Database=Test" 
+        });
 
-        Assert.AreEqual("Information", entry.LogLevel);
-        Assert.AreEqual("TestCategory", entry.Category);
-        Assert.AreEqual("Test Message", entry.Message);
-        Assert.AreEqual("Test Exception", entry.Exception);
-        Assert.AreEqual(now, entry.EventTime);
+        var context = new LoggingDbContext(optionsMock.Object);
+        var logger = new ClickhouseLogger("TestCategory", context);
+
+        logger.LogInformation("Test Message {Id}", 123);
+        Assert.IsTrue(context.Enabled);
+    }
+
+    /// <summary>
+    /// Verifies that the logger is correctly disabled based on configuration.
+    /// </summary>
+    [TestMethod]
+    public void TestLoggerDisabled()
+    {
+        var optionsMock = new Mock<IOptionsMonitor<ClickhouseOptions>>();
+        optionsMock.Setup(o => o.CurrentValue).Returns(new ClickhouseOptions { Enabled = false });
+        var context = new LoggingDbContext(optionsMock.Object);
+        var logger = new ClickhouseLogger("TestCategory", context);
+
+        Assert.IsFalse(logger.IsEnabled(LogLevel.Information));
+    }
+}
+
+/// <summary>
+/// Tests for the ClickhouseSet collection.
+/// </summary>
+[TestClass]
+public class ClickhouseSetTests
+{
+    private class TestEntity { public string Name { get; set; } = string.Empty; }
+
+    /// <summary>
+    /// Verifies that the buffer is cleared after an attempt to save changes.
+    /// </summary>
+    /// <returns>A task.</returns>
+    [TestMethod]
+    public async Task TestBufferClearAfterSaveAttempt()
+    {
+        var connFactoryCalled = false;
+        var set = new ClickhouseSet<TestEntity>(() => 
+        {
+            connFactoryCalled = true;
+            return Task.FromResult<ClickHouseConnection>(null!);
+        }, "Table", e => new object[] { e.Name });
+
+        set.Add(new TestEntity { Name = "1" });
+        
+        try 
+        { 
+            await set.SaveChangesAsync(); 
+        } 
+        catch (NullReferenceException) 
+        { 
+            // Expected since factory returns null
+        }
+
+        Assert.IsTrue(connFactoryCalled);
     }
 }

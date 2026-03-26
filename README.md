@@ -60,12 +60,48 @@ public class MyDbContext : ClickhouseDbContext
 }
 ```
 
-3. **Initialize the Schema**:
+3. **Register and Configure**:
+   In your `Program.cs`, register your DbContext and bind the configuration.
+
+```csharp
+// 1. Bind configuration (from appsettings.json or environment variables)
+builder.Services.Configure<ClickhouseOptions>(options => 
+{
+    options.ConnectionString = "Host=localhost;Database=MyBusinessDb;User=default;Password=password";
+});
+
+// 2. Register your custom DbContext
+builder.Services.AddSingleton<MyDbContext>();
+```
+
+4. **Initialize the Schema**:
    Call `InitClickhouseTableAsync<T>` during application startup.
 
 ```csharp
 // This will ensure 'MyTableName' exists in the database defined in your connection string.
-await host.Services.InitClickhouseTableAsync<MyEntity>("MyTableName", "CreatedAt"); // Table name and ORDER BY column
+await host.Services.InitClickhouseTableAsync<MyEntity>("MyTableName", "CreatedAt"); 
+```
+
+---
+
+## Configuration via appsettings.json
+
+Both projects use the same `ClickhouseOptions` structure. You can define your settings in `appsettings.json`:
+
+```json
+{
+  "Clickhouse": {
+    "ConnectionString": "Host=localhost;Database=DemoDb;User=default;Password=password",
+    "TableName": "AppLogs", 
+    "Enabled": true
+  }
+}
+```
+
+And bind it in your code:
+
+```csharp
+builder.Services.Configure<ClickhouseOptions>(builder.Configuration.GetSection("Clickhouse"));
 ```
 
 ---
