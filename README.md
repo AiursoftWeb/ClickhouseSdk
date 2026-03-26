@@ -1,4 +1,4 @@
-# Aiursoft ClickhouseSdk
+# Aiursoft ClickHouse SDK & Logger Provider
 
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/-/blob/master/LICENSE)
 [![Pipeline stat](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/badges/master/pipeline.svg)](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/-/pipelines)
@@ -6,112 +6,116 @@
 [![NuGet version (Aiursoft.ClickhouseSdk)](https://img.shields.io/nuget/v/Aiursoft.ClickhouseSdk.svg)](https://www.nuget.org/packages/Aiursoft.ClickhouseSdk/)
 [![Man hours](https://manhours.aiursoft.com/r/gitlab.aiursoft.com/aiursoft/ClickhouseSdk.svg)](https://manhours.aiursoft.com/r/gitlab.aiursoft.com/aiursoft/ClickhouseSdk.html)
 
-An Automatic dependencies management system for ASP.NET Core and powers Aiursoft.
+A high-performance, textbook-grade ClickHouse integration suite for .NET applications. It provides an effortless way to interact with ClickHouse using a "DbContext" style pattern and a high-performance logging provider for the standard Microsoft.Extensions.Logging infrastructure.
 
-## Why this project
+## Key Features
 
-The traditional way to add dependencies is:
+- **One Connection String Configuration**: Configure host, port, database, and target table all within a single connection string.
+- **Automatic Schema Management**: Automatically creates databases and tables. Supports schema evolution (automatically adds missing columns).
+- **High-Performance Bulk Writing**: Uses `ClickHouseBulkCopy` for asynchronous, non-blocking batch uploads.
+- **Background Log Flushing**: Buffered logging with background flushing to ensure zero impact on application performance.
 
-```csharp
-service.AddScoped<MyScopedDependency>();
-```
+## Project 1: Aiursoft.ClickhouseSdk (Core SDK)
 
-Which means that you have to manually inject all dependencies. When you have too many of them, it is possible to make a mistake.
+The core SDK provides the base infrastructure for ClickHouse communication.
 
-## How to install
-
-First, install `Aiursoft.ClickhouseSdk` to your ASP.NET Core project from nuget.org:
+### Installation
 
 ```bash
 dotnet add package Aiursoft.ClickhouseSdk
 ```
 
-Add the interface to your class like this:
+### Basic Usage
 
-```csharp
-using Aiursoft.ClickhouseSdk.Abstractions;
+1. **Define your Entity**:
+   Create a class representing your data row.
 
-public class MySingletonService : ISingletonDependency
-{
-
-}
-
-public class MyScopedService : IScopedDependency
-{
-
-}
-
-public class MyTransientService : ITransientDependency
-{
-
-}
-```
-
-And just call this in your `StartUp.cs`:
+2. **Create your DbContext**:
+   Inherit from `ClickhouseDbContext` and define your sets.
 
 ```csharp
 using Aiursoft.ClickhouseSdk;
+using Aiursoft.ClickhouseSdk.Abstractions;
 
-services.AddScannedDependencies();
-```
-
-That's all! All your dependencies are registered. Just use it like previous before:
-
-```csharp
-public class MyController : Controller
+public class MyDbContext : ClickhouseDbContext
 {
-    private readonly MyScopedService _service;
-    public MyController(MyScopedService service)
+    public ClickhouseSet<MyEntity> MyEntities { get; }
+
+    public MyDbContext(IOptionsMonitor<ClickhouseOptions> options) : base(options)
     {
-        _service = service;
+        // Define the mapping from your entity to ClickHouse row objects
+        MyEntities = new ClickhouseSet<MyEntity>(GetConnection, "MyTableName", entity => new object[] 
+        {
+            entity.Id,
+            entity.Name,
+            entity.CreatedAt
+        });
+    }
+
+    public override async Task SaveChangesAsync()
+    {
+        await MyEntities.SaveChangesAsync();
     }
 }
 ```
 
-### Advanced usage
-
-When you want to register a dependency that implements an abstract, your previous way is:
+3. **Initialize the Schema**:
+   Call `InitClickhouseTableAsync<T>` during application startup to ensure the database and table exist.
 
 ```csharp
-public class MyClass : IAbstract
+await host.Services.InitClickhouseTableAsync<MyEntity>("CreatedAt"); // ORDER BY column
+```
+
+---
+
+## Project 2: Aiursoft.ClickhouseLoggerProvider (Logging)
+
+A specialized provider that redirects standard `ILogger` output to ClickHouse.
+
+### Installation
+
+```bash
+dotnet add package Aiursoft.ClickhouseLoggerProvider
+```
+
+### Registration
+
+Register the provider in your application builder.
+
+```csharp
+builder.Logging.AddClickhouse(options => 
 {
-
-}
+    // Configure EVERYTHING in one string!
+    // Database 'MyLogs' and Table 'AppLogs' will be created automatically.
+    options.ConnectionString = "Host=localhost;Protocol=http;Port=8123;User=default;Password=password;Database=MyLogs;Table=AppLogs";
+});
 ```
+
+### Initialization
+
+Ensure the logging table is initialized at startup.
 
 ```csharp
-service.AddScoped<IAbstract, MyClass>();
+await host.Services.InitLoggingTableAsync();
 ```
 
-That's fine. But now we want to register this automatically.
+### Usage
 
-Add the dependency interface to your service like this:
+Just use the standard `ILogger` as usual. Logs are buffered and flushed to ClickHouse every 2 seconds in the background.
 
 ```csharp
-public class MyClass : IAbstract, IScopedDependency
-{
-
-}
+logger.LogInformation("Hello ClickHouse!");
 ```
 
-When you are registering all dependencies in your `StartUp.cs`, tell us that your project supports your abstract.
+## How to Contribute
 
-```csharp
-services.AddScannedDependencies(typeof(IAbstract));
-```
+We welcome contributions! Please follow these steps:
 
-And you can call it with multiple abstracts:
+1. Fork the repository.
+2. Create a feature branch.
+3. Ensure all code passes `lint.sh` and all tests pass.
+4. Submit a Pull Request.
 
-```csharp
-services.AddScannedDependencies(typeof(IAbstract1), typeof(IAbstract2), typeof(IAbstract3));
-```
+## License
 
-That's all! Enjoy!
-
-## How to contribute
-
-There are many ways to contribute to the project: logging bugs, submitting pull requests, reporting issues, and creating suggestions.
-
-Even if you with push rights on the repository, you should create a personal fork and create feature branches there when you need them. This keeps the main repository clean and your workflow cruft out of sight.
-
-We're also interested in your feedback on the future of this project. You can submit a suggestion or feature request through the issue tracker. To make this process more effective, we're asking that these include more information to help define them more clearly.
+This project is licensed under the MIT License.

@@ -21,5 +21,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Aiursoft.ClickhouseSdk\Aiursoft.ClickhouseSdk.csproj" />
+    <ProjectReference Include="..\..\src\Aiursoft.ClickhouseLoggerProvider\Aiursoft.ClickhouseLoggerProvider.csproj" />
   </ItemGroup>
 </Project>
