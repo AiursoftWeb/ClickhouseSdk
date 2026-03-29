@@ -64,8 +64,8 @@ public class LoggerTests
     [TestMethod]
     public void TestClickhouseLoggerBuffersCorrectly()
     {
-        var optionsMock = new Mock<IOptionsMonitor<ClickhouseOptions>>();
-        optionsMock.Setup(o => o.CurrentValue).Returns(new ClickhouseOptions 
+        var optionsMock = new Mock<IOptionsMonitor<ClickhouseLoggingOptions>>();
+        optionsMock.Setup(o => o.CurrentValue).Returns(new ClickhouseLoggingOptions 
         { 
             Enabled = true, 
             ConnectionString = "Host=localhost;Database=Test" 
@@ -84,8 +84,8 @@ public class LoggerTests
     [TestMethod]
     public void TestLoggerDisabled()
     {
-        var optionsMock = new Mock<IOptionsMonitor<ClickhouseOptions>>();
-        optionsMock.Setup(o => o.CurrentValue).Returns(new ClickhouseOptions { Enabled = false });
+        var optionsMock = new Mock<IOptionsMonitor<ClickhouseLoggingOptions>>();
+        optionsMock.Setup(o => o.CurrentValue).Returns(new ClickhouseLoggingOptions { Enabled = false });
         var context = new LoggingDbContext(optionsMock.Object);
         var logger = new ClickhouseLogger("TestCategory", context);
 
