@@ -24,7 +24,7 @@ public class LoggingDbContext : ClickhouseDbContext
         Logs = new ClickhouseSet<LogEntry>(GetConnection, options.CurrentValue.TableName, log => new object[] 
         {
             log.EventTime,
-            log.LogLevel,
+            (int)log.LogLevel,
             log.Category,
             log.Message,
             log.Exception
