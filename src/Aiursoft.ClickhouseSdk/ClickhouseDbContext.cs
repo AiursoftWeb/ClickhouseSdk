@@ -41,6 +41,11 @@ public abstract class ClickhouseDbContext : IAsyncDisposable, IDisposable
     /// <returns>A connected <see cref="ClickHouseConnection"/>.</returns>
     protected async Task<ClickHouseConnection> GetConnection()
     {
+        if (!Enabled)
+        {
+            throw new InvalidOperationException("Clickhouse is disabled in configuration. Cannot open connection.");
+        }
+
         if (_connection == null)
         {
             _connection = new ClickHouseConnection(_config.ConnectionString);
