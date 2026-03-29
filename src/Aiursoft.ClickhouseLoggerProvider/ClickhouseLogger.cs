@@ -29,7 +29,7 @@ public class ClickhouseLogger(string categoryName, LoggingDbContext dbContext) :
         var entry = new LogEntry
         {
             Category = categoryName,
-            LogLevel = logLevel.ToString(),
+            LogLevel = (int)logLevel,
             Message = formatter(state, exception),
             Exception = exception?.ToString() ?? string.Empty,
             EventTime = DateTime.UtcNow

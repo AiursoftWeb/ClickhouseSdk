@@ -13,7 +13,7 @@ public class LogEntry
     /// <summary>
     /// Gets or sets the log level.
     /// </summary>
-    public string LogLevel { get; set; } = string.Empty;
+    public int LogLevel { get; set; }
 
     /// <summary>
     /// Gets or sets the category of the log (usually the class name).
