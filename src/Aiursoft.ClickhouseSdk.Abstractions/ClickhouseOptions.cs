@@ -19,5 +19,5 @@ public class ClickhouseOptions
     /// <summary>
     /// Gets or sets a value indicating whether ClickHouse logging is enabled.
     /// </summary>
-    public bool Enabled { get; set; } = false;
+    public bool Enabled { get; set; }
 }
