@@ -17,9 +17,9 @@ public class LoggingDbContext : ClickhouseDbContext
     /// <summary>
     /// Initializes a new instance of the <see cref="LoggingDbContext"/> class.
     /// </summary>
-    /// <param name="options">Configuration options for ClickHouse.</param>
-    public LoggingDbContext(IOptionsMonitor<ClickhouseOptions> options) 
-        : base(options)
+    /// <param name="options">Configuration options for ClickHouse logging.</param>
+    public LoggingDbContext(IOptionsMonitor<ClickhouseLoggingOptions> options) 
+        : base(options.CurrentValue)
     {
         Logs = new ClickhouseSet<LogEntry>(GetConnection, options.CurrentValue.TableName, log => new object[] 
         {

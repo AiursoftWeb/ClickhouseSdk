@@ -22,9 +22,17 @@ public abstract class ClickhouseDbContext : IAsyncDisposable, IDisposable
     /// Initializes a new instance of the <see cref="ClickhouseDbContext"/> class.
     /// </summary>
     /// <param name="options">Options monitor for reactive configuration updates.</param>
-    protected ClickhouseDbContext(IOptionsMonitor<ClickhouseOptions> options)
+    protected ClickhouseDbContext(IOptionsMonitor<ClickhouseOptions> options) : this(options.CurrentValue)
     {
-        _config = options.CurrentValue;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ClickhouseDbContext"/> class.
+    /// </summary>
+    /// <param name="options">Static options to use.</param>
+    protected ClickhouseDbContext(ClickhouseOptions options)
+    {
+        _config = options;
     }
 
     /// <summary>

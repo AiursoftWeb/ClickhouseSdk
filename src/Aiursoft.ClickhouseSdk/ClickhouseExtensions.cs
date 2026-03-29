@@ -19,18 +19,23 @@ public static class ClickhouseExtensions
     /// <param name="serviceProvider">The DI service provider.</param>
     /// <param name="tableName">The name of the target table.</param>
     /// <param name="orderByColumn">The column name used for ORDER BY in the MergeTree engine.</param>
+    /// <param name="options">Optional ClickHouse options to use. If not provided, the default from DI will be used.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public static async Task InitClickhouseTableAsync<T>(this IServiceProvider serviceProvider, string tableName, string orderByColumn)
+    public static async Task InitClickhouseTableAsync<T>(
+        this IServiceProvider serviceProvider, 
+        string tableName, 
+        string orderByColumn,
+        ClickhouseOptions? options = null)
     {
-        var options = serviceProvider.GetRequiredService<IOptionsMonitor<ClickhouseOptions>>();
+        options ??= serviceProvider.GetRequiredService<IOptionsMonitor<ClickhouseOptions>>().CurrentValue;
         var logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("ClickhouseInitializer");
 
-        if (!options.CurrentValue.Enabled)
+        if (!options.Enabled)
         {
             return;
         }
 
-        var connectionString = options.CurrentValue.ConnectionString;
+        var connectionString = options.ConnectionString;
         var targetDatabase = ClickhouseConnectionUtility.GetDatabaseName(connectionString);
 
         try

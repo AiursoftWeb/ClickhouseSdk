@@ -16,9 +16,9 @@ public static class LoggingExtensions
     /// Adds a ClickHouse logger to the logging builder.
     /// </summary>
     /// <param name="builder">The logging builder.</param>
-    /// <param name="configure">An action to configure the ClickHouse options.</param>
+    /// <param name="configure">An action to configure the ClickHouse options for logging.</param>
     /// <returns>The updated logging builder.</returns>
-    public static ILoggingBuilder AddClickhouse(this ILoggingBuilder builder, Action<ClickhouseOptions> configure)
+    public static ILoggingBuilder AddClickhouse(this ILoggingBuilder builder, Action<ClickhouseLoggingOptions> configure)
     {
         builder.Services.Configure(configure);
         builder.Services.AddSingleton<LoggingDbContext>();
@@ -33,7 +33,7 @@ public static class LoggingExtensions
     /// <returns>A task representing the asynchronous operation.</returns>
     public static async Task InitLoggingTableAsync(this IServiceProvider provider)
     {
-        var options = provider.GetRequiredService<IOptionsMonitor<ClickhouseOptions>>();
-        await provider.InitClickhouseTableAsync<LogEntry>(options.CurrentValue.TableName, "EventTime");
+        var options = provider.GetRequiredService<IOptionsMonitor<ClickhouseLoggingOptions>>();
+        await provider.InitClickhouseTableAsync<LogEntry>(options.CurrentValue.TableName, "EventTime", options.CurrentValue);
     }
 }
