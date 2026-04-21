@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <Version>10.0.17</Version>
+    <Version>10.0.18</Version>
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>Aiursoft.ClickhouseLoggerProvider</AssemblyName>
     <RootNamespace>Aiursoft.ClickhouseLoggerProvider</RootNamespace>
@@ -29,6 +29,6 @@
     <ProjectReference Include="..\Aiursoft.ClickhouseSdk\Aiursoft.ClickhouseSdk.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.7" />
   </ItemGroup>
 </Project>
