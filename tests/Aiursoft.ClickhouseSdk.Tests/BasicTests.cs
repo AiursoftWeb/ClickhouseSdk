@@ -100,6 +100,7 @@ public class LoggerTests
 public class ClickhouseSetTests
 {
     private class TestEntity { public string Name { get; set; } = string.Empty; }
+    private class TwoColumnEntity { public string A { get; set; } = string.Empty; public int B { get; set; } }
 
     /// <summary>
     /// Verifies that the buffer is cleared after an attempt to save changes.
@@ -127,5 +128,63 @@ public class ClickhouseSetTests
         }
 
         Assert.IsTrue(connFactoryCalled);
+    }
+
+    /// <summary>
+    /// Verifies that SaveChangesAsync throws when the mapper returns fewer columns than the entity has properties.
+    /// </summary>
+    [TestMethod]
+    public async Task TestSaveChangesAsync_ThrowsWhenMapperColumnCountMismatch()
+    {
+        var set = new ClickhouseSet<TwoColumnEntity>(
+            () => Task.FromResult<ClickHouseConnection>(null!),
+            "Table",
+            e => new object[] { e.A }); // Missing B — only 1 column for a 2-property entity
+
+        set.Add(new TwoColumnEntity { A = "hello", B = 42 });
+
+        InvalidOperationException? caught = null;
+        try
+        {
+            await set.SaveChangesAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            caught = ex;
+        }
+
+        Assert.IsNotNull(caught, "Expected InvalidOperationException was not thrown.");
+        StringAssert.Contains(caught.Message, "TwoColumnEntity");
+        StringAssert.Contains(caught.Message, "1");
+        StringAssert.Contains(caught.Message, "2");
+    }
+
+    /// <summary>
+    /// Verifies that SaveChangesAsync does not throw when the mapper column count matches the entity.
+    /// </summary>
+    [TestMethod]
+    public async Task TestSaveChangesAsync_NoThrowWhenMapperMatchesEntity()
+    {
+        var set = new ClickhouseSet<TwoColumnEntity>(
+            () => Task.FromResult<ClickHouseConnection>(null!),
+            "Table",
+            e => new object[] { e.A, e.B }); // Correct: 2 columns for 2 properties
+
+        set.Add(new TwoColumnEntity { A = "hello", B = 42 });
+
+        // Should throw ArgumentNullException from ClickHouseBulkCopy (null connection),
+        // NOT InvalidOperationException from our column count check.
+        try
+        {
+            await set.SaveChangesAsync();
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Mapper"))
+        {
+            Assert.Fail("Should not throw mapper mismatch error when column count is correct.");
+        }
+        catch
+        {
+            // Other exceptions (null connection etc.) are fine here
+        }
     }
 }

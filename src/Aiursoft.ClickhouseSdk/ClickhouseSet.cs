@@ -1,3 +1,4 @@
+using System.Reflection;
 using ClickHouse.Client.ADO;
 using ClickHouse.Client.Copy;
 
@@ -13,6 +14,7 @@ public class ClickhouseSet<T>(
     string tableName, 
     Func<T, object[]> mapper) where T : class
 {
+    private static readonly int ExpectedColumnCount = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance).Length;
     private readonly List<T> _local = new();
 
     /// <summary>
@@ -42,6 +44,15 @@ public class ClickhouseSet<T>(
             }
             items = _local.ToArray();
             _local.Clear();
+        }
+
+        var firstRow = mapper(items[0]);
+        if (firstRow.Length != ExpectedColumnCount)
+        {
+            throw new InvalidOperationException(
+                $"Mapper for ClickhouseSet<{typeof(T).Name}> returns {firstRow.Length} column(s) " +
+                $"but entity {typeof(T).Name} has {ExpectedColumnCount} public propert(ies). " +
+                "Ensure the mapper includes every property in declaration order to match the ClickHouse table schema.");
         }
 
         var connection = await connectionFactory();
