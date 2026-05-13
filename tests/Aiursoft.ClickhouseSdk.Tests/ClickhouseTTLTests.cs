@@ -2,7 +2,6 @@ using Aiursoft.ClickhouseLoggerProvider;
 using Aiursoft.ClickhouseSdk.Abstractions;
 using ClickHouse.Client.ADO;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 
