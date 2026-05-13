@@ -34,6 +34,6 @@ public static class LoggingExtensions
     public static async Task InitLoggingTableAsync(this IServiceProvider provider)
     {
         var options = provider.GetRequiredService<IOptionsMonitor<ClickhouseLoggingOptions>>();
-        await provider.InitClickhouseTableAsync<LogEntry>(options.CurrentValue.TableName, "EventTime", options.CurrentValue);
+        await provider.InitClickhouseTableAsync<LogEntry>(options.CurrentValue.TableName, "EventTime", options.CurrentValue, ttlColumn: "EventTime");
     }
 }

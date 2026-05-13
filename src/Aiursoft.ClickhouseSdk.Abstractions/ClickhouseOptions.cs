@@ -20,4 +20,10 @@ public class ClickhouseOptions
     /// Gets or sets a value indicating whether ClickHouse logging is enabled.
     /// </summary>
     public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the data retention period in days. Data older than this will be automatically deleted.
+    /// Default is 30 days. Set to 0 to disable automatic TTL management.
+    /// </summary>
+    public int RetentionDays { get; set; } = 30;
 }

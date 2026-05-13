@@ -13,19 +13,24 @@ public static class ClickhouseExtensions
 {
     /// <summary>
     /// Initializes a ClickHouse table based on the provided entity type.
-    /// Automatically creates the database and ensures all columns exist.
+    /// Automatically creates the database, ensures all columns exist, and manages the TTL policy.
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>
     /// <param name="serviceProvider">The DI service provider.</param>
     /// <param name="tableName">The name of the target table.</param>
     /// <param name="orderByColumn">The column name used for ORDER BY in the MergeTree engine.</param>
     /// <param name="options">Optional ClickHouse options to use. If not provided, the default from DI will be used.</param>
+    /// <param name="ttlColumn">
+    /// The DateTime column name to base TTL on. When set and <see cref="ClickhouseOptions.RetentionDays"/> > 0,
+    /// ClickHouse will automatically delete data older than the retention period.
+    /// </param>
     /// <returns>A task representing the asynchronous operation.</returns>
     public static async Task InitClickhouseTableAsync<T>(
-        this IServiceProvider serviceProvider, 
-        string tableName, 
+        this IServiceProvider serviceProvider,
+        string tableName,
         string orderByColumn,
-        ClickhouseOptions? options = null)
+        ClickhouseOptions? options = null,
+        string? ttlColumn = null)
     {
         options ??= serviceProvider.GetRequiredService<IOptionsMonitor<ClickhouseOptions>>().CurrentValue;
         var logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("ClickhouseInitializer");
@@ -82,6 +87,24 @@ public static class ClickhouseExtensions
                 await using var command = connection.CreateCommand();
                 command.CommandText = alterSql;
                 await command.ExecuteNonQueryAsync();
+            }
+
+            // Step 4: Manage TTL to enforce data retention policy.
+            if (ttlColumn is not null && options.RetentionDays > 0)
+            {
+                var ttlSql = $"ALTER TABLE {tableName} MODIFY TTL {ttlColumn} + INTERVAL {options.RetentionDays} DAY";
+                await using var command = connection.CreateCommand();
+                command.CommandText = ttlSql;
+                await command.ExecuteNonQueryAsync();
+                logger.LogInformation("Clickhouse table '{TableName}' TTL set to {RetentionDays} days on column '{TtlColumn}'.", tableName, options.RetentionDays, ttlColumn);
+            }
+            else if (ttlColumn is null)
+            {
+                logger.LogDebug("Clickhouse table '{TableName}' skipped TTL configuration: no TTL column specified.", tableName);
+            }
+            else
+            {
+                logger.LogDebug("Clickhouse table '{TableName}' skipped TTL configuration: RetentionDays is 0 (disabled).", tableName);
             }
 
             logger.LogInformation("Clickhouse table '{TableName}' initialized and schema updated.", tableName);
