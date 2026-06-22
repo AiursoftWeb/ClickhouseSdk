@@ -1,6 +1,8 @@
 using Aiursoft.ClickhouseSdk.Abstractions;
 using ClickHouse.Client.ADO;
+using ClickHouse.Client.Utility;
 using Microsoft.Extensions.Options;
+using System.Data.Common;
 
 namespace Aiursoft.ClickhouseSdk;
 
@@ -52,6 +54,80 @@ public abstract class ClickhouseDbContext : IAsyncDisposable, IDisposable
             await _connection.OpenAsync();
         }
         return _connection;
+    }
+
+    /// <summary>
+    /// Executes a scalar ClickHouse query and converts the result to the requested type.
+    /// </summary>
+    /// <typeparam name="T">The expected scalar result type.</typeparam>
+    /// <param name="commandText">The SQL command text to execute.</param>
+    /// <param name="parameters">Optional command parameters.</param>
+    /// <returns>The scalar query result.</returns>
+    public async Task<T?> ExecuteScalarAsync<T>(
+        string commandText,
+        IReadOnlyDictionary<string, object?>? parameters = null)
+    {
+        var connection = await GetConnection();
+        await using var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        AddParameters(command, parameters);
+
+        var result = await command.ExecuteScalarAsync();
+        if (result is null || result is DBNull)
+        {
+            return default;
+        }
+
+        var targetType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
+        if (targetType.IsEnum)
+        {
+            return (T)Enum.ToObject(targetType, result);
+        }
+
+        return (T)Convert.ChangeType(result, targetType);
+    }
+
+    /// <summary>
+    /// Executes a ClickHouse query and maps each row to the requested result type.
+    /// </summary>
+    /// <typeparam name="T">The row result type.</typeparam>
+    /// <param name="commandText">The SQL command text to execute.</param>
+    /// <param name="mapper">Maps a data reader row to a result object.</param>
+    /// <param name="parameters">Optional command parameters.</param>
+    /// <returns>The mapped query results.</returns>
+    public async Task<IReadOnlyList<T>> QueryAsync<T>(
+        string commandText,
+        Func<DbDataReader, T> mapper,
+        IReadOnlyDictionary<string, object?>? parameters = null)
+    {
+        var connection = await GetConnection();
+        await using var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        AddParameters(command, parameters);
+
+        var results = new List<T>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            results.Add(mapper(reader));
+        }
+
+        return results;
+    }
+
+    private static void AddParameters(
+        ClickHouseCommand command,
+        IReadOnlyDictionary<string, object?>? parameters)
+    {
+        if (parameters is null)
+        {
+            return;
+        }
+
+        foreach (var parameter in parameters)
+        {
+            command.AddParameter(parameter.Key, parameter.Value);
+        }
     }
 
     /// <summary>
