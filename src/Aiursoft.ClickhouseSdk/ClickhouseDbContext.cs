@@ -3,6 +3,9 @@ using ClickHouse.Client.ADO;
 using ClickHouse.Client.Utility;
 using Microsoft.Extensions.Options;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("Aiursoft.ClickhouseSdk.Tests")]
 
 namespace Aiursoft.ClickhouseSdk;
 
@@ -73,6 +76,11 @@ public abstract class ClickhouseDbContext : IAsyncDisposable, IDisposable
         AddParameters(command, parameters);
 
         var result = await command.ExecuteScalarAsync();
+        return ConvertScalarResult<T>(result);
+    }
+
+    internal static T? ConvertScalarResult<T>(object? result)
+    {
         if (result is null || result is DBNull)
         {
             return default;
@@ -81,6 +89,11 @@ public abstract class ClickhouseDbContext : IAsyncDisposable, IDisposable
         var targetType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
         if (targetType.IsEnum)
         {
+            if (result is string enumName)
+            {
+                return (T)Enum.Parse(targetType, enumName);
+            }
+
             return (T)Enum.ToObject(targetType, result);
         }
 
@@ -115,7 +128,7 @@ public abstract class ClickhouseDbContext : IAsyncDisposable, IDisposable
         return results;
     }
 
-    private static void AddParameters(
+    internal static void AddParameters(
         ClickHouseCommand command,
         IReadOnlyDictionary<string, object?>? parameters)
     {
@@ -126,7 +139,7 @@ public abstract class ClickhouseDbContext : IAsyncDisposable, IDisposable
 
         foreach (var parameter in parameters)
         {
-            command.AddParameter(parameter.Key, parameter.Value);
+            command.AddParameter(parameter.Key, parameter.Value ?? DBNull.Value);
         }
     }
 

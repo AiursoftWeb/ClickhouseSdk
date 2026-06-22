@@ -40,14 +40,14 @@ public static class ClickhouseExtensions
             return;
         }
 
-        var connectionString = options.ConnectionString;
-        var targetDatabase = ClickhouseConnectionUtility.GetDatabaseName(connectionString);
-        var quotedDatabase = ClickhouseIdentifier.Quote(targetDatabase);
-        var quotedTable = ClickhouseIdentifier.Quote(tableName);
-        var quotedOrderByColumn = ClickhouseIdentifier.Quote(orderByColumn);
-
         try
         {
+            var connectionString = options.ConnectionString;
+            var targetDatabase = ClickhouseConnectionUtility.GetDatabaseName(connectionString);
+            var quotedDatabase = ClickhouseIdentifier.Quote(targetDatabase);
+            var quotedTable = ClickhouseIdentifier.Quote(tableName);
+            var quotedOrderByColumn = ClickhouseIdentifier.Quote(orderByColumn);
+
             // Step 1: Ensure database exists.
             var initConnectionString = ClickhouseConnectionUtility.GetInitConnectionString(connectionString);
             await using var initConnection = new ClickHouseConnection(initConnectionString);

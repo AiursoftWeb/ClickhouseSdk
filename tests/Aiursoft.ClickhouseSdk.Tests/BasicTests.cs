@@ -1,6 +1,7 @@
 using Aiursoft.ClickhouseLoggerProvider;
 using Aiursoft.ClickhouseSdk.Abstractions;
 using ClickHouse.Client.ADO;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -119,6 +120,12 @@ public class LoggerTests
 [TestClass]
 public class ClickhouseSetTests
 {
+    private enum TestStatus
+    {
+        Pending,
+        Complete
+    }
+
     private class TestEntity { public string Name { get; set; } = string.Empty; }
     private class TwoColumnEntity { public string A { get; set; } = string.Empty; public int B { get; set; } }
     private class TestContext(ClickhouseOptions options) : ClickhouseDbContext(options)
@@ -223,5 +230,42 @@ public class ClickhouseSetTests
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => context.ExecuteScalarAsync<int>("SELECT 1"));
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
             context.QueryAsync("SELECT 1", reader => reader.GetInt32(0)));
+    }
+
+    /// <summary>
+    /// Verifies that nullable query parameters are passed to the driver as database nulls.
+    /// </summary>
+    [TestMethod]
+    public void TestQueryParametersNormalizeNullValues()
+    {
+        using var command = new ClickHouseCommand();
+        var parameters = new Dictionary<string, object?> { ["name"] = null };
+
+        TestContext.AddParameters(command, parameters);
+
+        Assert.AreSame(DBNull.Value, command.Parameters[0].Value);
+    }
+
+    /// <summary>
+    /// Verifies that ClickHouse enum labels convert to CLR enum values.
+    /// </summary>
+    [TestMethod]
+    public void TestScalarEnumConversionFromString()
+    {
+        var result = TestContext.ConvertScalarResult<TestStatus>("Complete");
+
+        Assert.AreEqual(TestStatus.Complete, result);
+    }
+
+    /// <summary>
+    /// Verifies that invalid identifier configuration follows the initializer's logging path.
+    /// </summary>
+    [TestMethod]
+    public async Task TestInvalidIdentifierDoesNotEscapeInitializer()
+    {
+        var services = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var options = new ClickhouseOptions { Enabled = true };
+
+        await services.InitClickhouseTableAsync<TestEntity>("Unsafe;Table", "Name", options);
     }
 }
