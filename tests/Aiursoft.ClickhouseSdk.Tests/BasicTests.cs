@@ -122,7 +122,6 @@ public class ClickhouseSetTests
 {
     private enum TestStatus
     {
-        Pending,
         Complete
     }
 
@@ -241,7 +240,7 @@ public class ClickhouseSetTests
         using var command = new ClickHouseCommand();
         var parameters = new Dictionary<string, object?> { ["name"] = null };
 
-        TestContext.AddParameters(command, parameters);
+        ClickhouseDbContext.AddParameters(command, parameters);
 
         Assert.AreSame(DBNull.Value, command.Parameters[0].Value);
     }
@@ -252,7 +251,7 @@ public class ClickhouseSetTests
     [TestMethod]
     public void TestScalarEnumConversionFromString()
     {
-        var result = TestContext.ConvertScalarResult<TestStatus>("Complete");
+        var result = ClickhouseDbContext.ConvertScalarResult<TestStatus>("Complete");
 
         Assert.AreEqual(TestStatus.Complete, result);
     }
