@@ -40,17 +40,20 @@ public static class ClickhouseExtensions
             return;
         }
 
-        var connectionString = options.ConnectionString;
-        var targetDatabase = ClickhouseConnectionUtility.GetDatabaseName(connectionString);
-
         try
         {
+            var connectionString = options.ConnectionString;
+            var targetDatabase = ClickhouseConnectionUtility.GetDatabaseName(connectionString);
+            var quotedDatabase = ClickhouseIdentifier.Quote(targetDatabase);
+            var quotedTable = ClickhouseIdentifier.Quote(tableName);
+            var quotedOrderByColumn = ClickhouseIdentifier.Quote(orderByColumn);
+
             // Step 1: Ensure database exists.
             var initConnectionString = ClickhouseConnectionUtility.GetInitConnectionString(connectionString);
             await using var initConnection = new ClickHouseConnection(initConnectionString);
             await initConnection.OpenAsync();
             await using var dbCommand = initConnection.CreateCommand();
-            dbCommand.CommandText = $"CREATE DATABASE IF NOT EXISTS {targetDatabase}";
+            dbCommand.CommandText = $"CREATE DATABASE IF NOT EXISTS {quotedDatabase}";
             await dbCommand.ExecuteNonQueryAsync();
             logger.LogInformation("Database '{DatabaseName}' checked/created.", targetDatabase);
 
@@ -64,14 +67,14 @@ public static class ClickhouseExtensions
             foreach (var prop in properties)
             {
                 var chType = ClickhouseTypeMapper.MapClrTypeToChType(prop.PropertyType);
-                columns.Add($"{prop.Name} {chType}");
+                columns.Add($"{ClickhouseIdentifier.Quote(prop.Name)} {chType}");
             }
 
             var createTableSql = $@"
-                CREATE TABLE IF NOT EXISTS {tableName} (
+                CREATE TABLE IF NOT EXISTS {quotedTable} (
                     {string.Join(",\n                    ", columns)}
                 ) ENGINE = MergeTree()
-                ORDER BY {orderByColumn}";
+                ORDER BY {quotedOrderByColumn}";
             
             await using (var command = connection.CreateCommand())
             {
@@ -83,7 +86,7 @@ public static class ClickhouseExtensions
             foreach (var prop in properties)
             {
                 var chType = ClickhouseTypeMapper.MapClrTypeToChType(prop.PropertyType);
-                var alterSql = $"ALTER TABLE {tableName} ADD COLUMN IF NOT EXISTS {prop.Name} {chType}";
+                var alterSql = $"ALTER TABLE {quotedTable} ADD COLUMN IF NOT EXISTS {ClickhouseIdentifier.Quote(prop.Name)} {chType}";
                 await using var command = connection.CreateCommand();
                 command.CommandText = alterSql;
                 await command.ExecuteNonQueryAsync();
@@ -92,7 +95,7 @@ public static class ClickhouseExtensions
             // Step 4: Manage TTL to enforce data retention policy.
             if (ttlColumn is not null && options.RetentionDays > 0)
             {
-                var ttlSql = $"ALTER TABLE {tableName} MODIFY TTL {ttlColumn} + INTERVAL {options.RetentionDays} DAY";
+                var ttlSql = $"ALTER TABLE {quotedTable} MODIFY TTL {ClickhouseIdentifier.Quote(ttlColumn)} + INTERVAL {options.RetentionDays} DAY";
                 await using var command = connection.CreateCommand();
                 command.CommandText = ttlSql;
                 await command.ExecuteNonQueryAsync();

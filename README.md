@@ -149,6 +149,40 @@ public class MyService(MyDbContext dbContext)
 }
 ```
 
+### 5. Query Data
+
+Use `QueryAsync` and `ExecuteScalarAsync` for read scenarios. Keep values parameterized, and use `ClickhouseIdentifier.Quote` when composing trusted database, table, or column identifiers from configuration.
+
+```csharp
+public class MyQueryService(MyDbContext dbContext, IOptionsMonitor<ClickhouseOptions> options)
+{
+    public async Task<IReadOnlyList<MyEntity>> GetLatestAsync(string name, int limit)
+    {
+        var table = ClickhouseIdentifier.Quote(options.CurrentValue.TableName);
+        return await dbContext.QueryAsync(
+            $"""
+            SELECT Id, Name, Value, CreatedAt
+            FROM {table}
+            WHERE Name = {{name:String}}
+            ORDER BY CreatedAt DESC
+            LIMIT {{limit:Int32}}
+            """,
+            reader => new MyEntity
+            {
+                Id = reader.GetGuid(0),
+                Name = reader.GetString(1),
+                Value = reader.GetInt32(2),
+                CreatedAt = reader.GetDateTime(3)
+            },
+            new Dictionary<string, object?>
+            {
+                ["name"] = name,
+                ["limit"] = limit
+            });
+    }
+}
+```
+
 ---
 
 ## Project 2: Aiursoft.ClickhouseLoggerProvider

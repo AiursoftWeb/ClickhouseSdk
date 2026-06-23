@@ -1,6 +1,7 @@
 using Aiursoft.ClickhouseLoggerProvider;
 using Aiursoft.ClickhouseSdk.Abstractions;
 using ClickHouse.Client.ADO;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -49,6 +50,26 @@ public class UtilityTests
     {
         var result = ClickhouseTypeMapper.MapClrTypeToChType(type);
         Assert.AreEqual(expected, result);
+    }
+
+    /// <summary>
+    /// Verifies that valid ClickHouse identifiers are quoted safely.
+    /// </summary>
+    [TestMethod]
+    public void TestIdentifierQuoting()
+    {
+        Assert.AreEqual("`AuditLogs`", ClickhouseIdentifier.Quote("AuditLogs"));
+        Assert.AreEqual("`AuditDb`.`AuditLogs`", ClickhouseIdentifier.Quote("AuditDb.AuditLogs"));
+    }
+
+    /// <summary>
+    /// Verifies that unsafe ClickHouse identifiers are rejected before SQL composition.
+    /// </summary>
+    [TestMethod]
+    public void TestIdentifierQuotingRejectsUnsafeNames()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => ClickhouseIdentifier.Quote("AuditLogs; DROP TABLE Users"));
+        Assert.ThrowsExactly<ArgumentException>(() => ClickhouseIdentifier.Quote("AuditDb."));
     }
 }
 
@@ -99,8 +120,17 @@ public class LoggerTests
 [TestClass]
 public class ClickhouseSetTests
 {
+    private enum TestStatus
+    {
+        Complete
+    }
+
     private class TestEntity { public string Name { get; set; } = string.Empty; }
     private class TwoColumnEntity { public string A { get; set; } = string.Empty; public int B { get; set; } }
+    private class TestContext(ClickhouseOptions options) : ClickhouseDbContext(options)
+    {
+        public override Task SaveChangesAsync() => Task.CompletedTask;
+    }
 
     /// <summary>
     /// Verifies that the buffer is cleared after an attempt to save changes.
@@ -186,5 +216,55 @@ public class ClickhouseSetTests
         {
             // Other exceptions (null connection etc.) are fine here
         }
+    }
+
+    /// <summary>
+    /// Verifies that query helpers respect the ClickHouse enabled switch before opening a connection.
+    /// </summary>
+    [TestMethod]
+    public async Task TestQueryHelpersRespectDisabledOption()
+    {
+        var context = new TestContext(new ClickhouseOptions { Enabled = false });
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => context.ExecuteScalarAsync<int>("SELECT 1"));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            context.QueryAsync("SELECT 1", reader => reader.GetInt32(0)));
+    }
+
+    /// <summary>
+    /// Verifies that nullable query parameters are passed to the driver as database nulls.
+    /// </summary>
+    [TestMethod]
+    public void TestQueryParametersNormalizeNullValues()
+    {
+        using var command = new ClickHouseCommand();
+        var parameters = new Dictionary<string, object?> { ["name"] = null };
+
+        ClickhouseDbContext.AddParameters(command, parameters);
+
+        Assert.AreSame(DBNull.Value, command.Parameters[0].Value);
+    }
+
+    /// <summary>
+    /// Verifies that ClickHouse enum labels convert to CLR enum values.
+    /// </summary>
+    [TestMethod]
+    public void TestScalarEnumConversionFromString()
+    {
+        var result = ClickhouseDbContext.ConvertScalarResult<TestStatus>("Complete");
+
+        Assert.AreEqual(TestStatus.Complete, result);
+    }
+
+    /// <summary>
+    /// Verifies that invalid identifier configuration follows the initializer's logging path.
+    /// </summary>
+    [TestMethod]
+    public async Task TestInvalidIdentifierDoesNotEscapeInitializer()
+    {
+        var services = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var options = new ClickhouseOptions { Enabled = true };
+
+        await services.InitClickhouseTableAsync<TestEntity>("Unsafe;Table", "Name", options);
     }
 }
