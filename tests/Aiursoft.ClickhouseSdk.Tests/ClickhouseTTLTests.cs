@@ -2,8 +2,6 @@ using Aiursoft.ClickhouseLoggerProvider;
 using Aiursoft.ClickhouseSdk.Abstractions;
 using ClickHouse.Client.ADO;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
-using Moq;
 
 namespace Aiursoft.ClickhouseSdk.Tests;
 
@@ -102,19 +100,14 @@ public class ClickhouseTtlIntegrationTests
 
     private IServiceProvider BuildServiceProvider(int retentionDays = 30, bool enabled = true)
     {
-        var options = new ClickhouseOptions
-        {
-            ConnectionString = _connectionString!,
-            Enabled = enabled,
-            RetentionDays = retentionDays
-        };
-
-        var optionsMock = new Mock<IOptionsMonitor<ClickhouseOptions>>();
-        optionsMock.Setup(o => o.CurrentValue).Returns(options);
-
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton(optionsMock.Object);
+        services.Configure<ClickhouseOptions>(options =>
+        {
+            options.ConnectionString = _connectionString!;
+            options.Enabled = enabled;
+            options.RetentionDays = retentionDays;
+        });
 
         return services.BuildServiceProvider();
     }
@@ -450,20 +443,15 @@ public class ClickhouseTtlIntegrationTests
 
         var table = $"log_test_{Guid.NewGuid():N}";
 
-        var options = new ClickhouseLoggingOptions
-        {
-            ConnectionString = _connectionString!,
-            Enabled = true,
-            RetentionDays = 30,
-            TableName = table
-        };
-
-        var optionsMock = new Mock<IOptionsMonitor<ClickhouseLoggingOptions>>();
-        optionsMock.Setup(o => o.CurrentValue).Returns(options);
-
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton(optionsMock.Object);
+        services.Configure<ClickhouseLoggingOptions>(options =>
+        {
+            options.ConnectionString = _connectionString!;
+            options.Enabled = true;
+            options.RetentionDays = 30;
+            options.TableName = table;
+        });
 
         var provider = services.BuildServiceProvider();
 
