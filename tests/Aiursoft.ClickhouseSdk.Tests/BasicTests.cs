@@ -4,7 +4,6 @@ using ClickHouse.Client.ADO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Moq;
 
 namespace Aiursoft.ClickhouseSdk.Tests;
 
@@ -85,14 +84,15 @@ public class LoggerTests
     [TestMethod]
     public void TestClickhouseLoggerBuffersCorrectly()
     {
-        var optionsMock = new Mock<IOptionsMonitor<ClickhouseLoggingOptions>>();
-        optionsMock.Setup(o => o.CurrentValue).Returns(new ClickhouseLoggingOptions 
-        { 
-            Enabled = true, 
-            ConnectionString = "Host=localhost;Database=Test" 
-        });
+        using var provider = new ServiceCollection()
+            .Configure<ClickhouseLoggingOptions>(options =>
+            {
+                options.Enabled = true;
+                options.ConnectionString = "Host=localhost;Database=Test";
+            })
+            .BuildServiceProvider();
 
-        var context = new LoggingDbContext(optionsMock.Object);
+        var context = new LoggingDbContext(provider.GetRequiredService<IOptionsMonitor<ClickhouseLoggingOptions>>());
         var logger = new ClickhouseLogger("TestCategory", context);
 
         logger.LogInformation("Test Message {Id}", 123);
@@ -105,9 +105,11 @@ public class LoggerTests
     [TestMethod]
     public void TestLoggerDisabled()
     {
-        var optionsMock = new Mock<IOptionsMonitor<ClickhouseLoggingOptions>>();
-        optionsMock.Setup(o => o.CurrentValue).Returns(new ClickhouseLoggingOptions { Enabled = false });
-        var context = new LoggingDbContext(optionsMock.Object);
+        using var provider = new ServiceCollection()
+            .Configure<ClickhouseLoggingOptions>(options => options.Enabled = false)
+            .BuildServiceProvider();
+
+        var context = new LoggingDbContext(provider.GetRequiredService<IOptionsMonitor<ClickhouseLoggingOptions>>());
         var logger = new ClickhouseLogger("TestCategory", context);
 
         Assert.IsFalse(logger.IsEnabled(LogLevel.Information));
