@@ -4,7 +4,7 @@
 [![Pipeline stat](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/badges/master/pipeline.svg)](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/-/pipelines)
 [![Test Coverage](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/badges/master/coverage.svg)](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/-/pipelines)
 [![NuGet version (Aiursoft.ClickhouseSdk)](https://img.shields.io/nuget/v/Aiursoft.ClickhouseSdk.svg)](https://www.nuget.org/packages/Aiursoft.ClickhouseSdk/)
-[![Man hours](https://manhours.aiursoft.com/r/gitlab.aiursoft.com/aiursoft/ClickhouseSdk.svg)](https://manhours.aiursoft.com/r/gitlab.aiursoft.com/aiursoft/ClickhouseSdk.html)
+[![Man hours](https://manhours.aiursoft.com/r/github.com/aiursoftweb/ClickhouseSdk.svg)](https://manhours.aiursoft.com/r/github.com/aiursoftweb/ClickhouseSdk.html)
 
 A high-performance, textbook-grade ClickHouse integration suite for .NET applications. It provides an effortless way to interact with ClickHouse using a "DbContext" style pattern and a high-performance logging provider for the standard Microsoft.Extensions.Logging infrastructure.
 
