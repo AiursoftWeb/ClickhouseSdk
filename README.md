@@ -1,6 +1,6 @@
 # Aiursoft ClickHouse SDK & Logger Provider
 
-[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/-/blob/master/LICENSE)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/AiursoftWeb/clickhousesdk/blob/master/LICENSE)
 [![Pipeline stat](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/badges/master/pipeline.svg)](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/-/pipelines)
 [![Test Coverage](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/badges/master/coverage.svg)](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/-/pipelines)
 [![NuGet version (Aiursoft.ClickhouseSdk)](https://img.shields.io/nuget/v/Aiursoft.ClickhouseSdk.svg)](https://www.nuget.org/packages/Aiursoft.ClickhouseSdk/)
