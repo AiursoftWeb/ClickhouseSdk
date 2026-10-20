@@ -3,6 +3,7 @@
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/AiursoftWeb/clickhousesdk/blob/master/LICENSE)
 [![Pipeline stat](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/badges/master/pipeline.svg)](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/-/pipelines)
 [![Test Coverage](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/badges/master/coverage.svg)](https://gitlab.aiursoft.com/aiursoft/clickhouseSdk/-/pipelines)
+[![S360 compliance](https://s360.aiursoft.com/badge.svg?project=aiursoft%2Fclickhousesdk)](https://s360.aiursoft.com/SupplyChain?tab=projects&project=aiursoft%2Fclickhousesdk&scope=baseline&ecosystem=all)
 [![NuGet version (Aiursoft.ClickhouseSdk)](https://img.shields.io/nuget/v/Aiursoft.ClickhouseSdk.svg)](https://www.nuget.org/packages/Aiursoft.ClickhouseSdk/)
 [![Man hours](https://manhours.aiursoft.com/r/github.com/aiursoftweb/ClickhouseSdk.svg)](https://manhours.aiursoft.com/r/github.com/aiursoftweb/ClickhouseSdk.html)
 
