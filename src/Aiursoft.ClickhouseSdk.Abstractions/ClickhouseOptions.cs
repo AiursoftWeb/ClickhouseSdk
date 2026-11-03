@@ -23,7 +23,7 @@ public class ClickhouseOptions
 
     /// <summary>
     /// Gets or sets the data retention period in days. Data older than this will be automatically deleted.
-    /// Default is 30 days. Set to 0 to disable automatic TTL management.
+    /// Default is 120 days. Set to 0 to disable automatic TTL management.
     /// </summary>
-    public int RetentionDays { get; set; } = 30;
+    public int RetentionDays { get; set; } = 120;
 }

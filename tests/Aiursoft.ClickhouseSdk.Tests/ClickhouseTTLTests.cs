@@ -12,24 +12,24 @@ namespace Aiursoft.ClickhouseSdk.Tests;
 public class ClickhouseTtlDefaultsTests
 {
     /// <summary>
-    /// Default RetentionDays must be 30 so that new installs and silent upgrades apply a 30-day cap.
+    /// Default retention keeps 120 days of history for new installs and upgrades.
     /// </summary>
     [TestMethod]
-    public void ClickhouseOptions_DefaultRetentionDays_Is30()
+    public void ClickhouseOptions_DefaultRetentionDays_Is120()
     {
         var options = new ClickhouseOptions();
-        Assert.AreEqual(30, options.RetentionDays);
+        Assert.AreEqual(120, options.RetentionDays);
     }
 
     /// <summary>
     /// ClickhouseLoggingOptions inherits RetentionDays from ClickhouseOptions.
-    /// Upgrading apps that never set this value must still get 30 days.
+    /// Upgrading apps that never set this value must retain 120 days.
     /// </summary>
     [TestMethod]
-    public void ClickhouseLoggingOptions_InheritsRetentionDays_Default30()
+    public void ClickhouseLoggingOptions_InheritsRetentionDays_Default120()
     {
         var options = new ClickhouseLoggingOptions();
-        Assert.AreEqual(30, options.RetentionDays);
+        Assert.AreEqual(120, options.RetentionDays);
     }
 
     /// <summary>
@@ -98,7 +98,7 @@ public class ClickhouseTtlIntegrationTests
         }
     }
 
-    private IServiceProvider BuildServiceProvider(int retentionDays = 30, bool enabled = true)
+    private IServiceProvider BuildServiceProvider(int? retentionDays = null, bool enabled = true)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -106,7 +106,7 @@ public class ClickhouseTtlIntegrationTests
         {
             options.ConnectionString = _connectionString!;
             options.Enabled = enabled;
-            options.RetentionDays = retentionDays;
+            if (retentionDays.HasValue) options.RetentionDays = retentionDays.Value;
         });
 
         return services.BuildServiceProvider();
@@ -140,7 +140,7 @@ public class ClickhouseTtlIntegrationTests
 
     /// <summary>
     /// Scenario: New user creates a fresh table.
-    /// Expect: table exists and TTL = 30 days on EventTime.
+    /// Expect: table exists and TTL = 120 days on EventTime.
     /// </summary>
     [TestMethod]
     public async Task NewTable_GetsTTLApplied()
@@ -148,7 +148,7 @@ public class ClickhouseTtlIntegrationTests
         AssertSkipIfUnavailable();
 
         var table = UniqueTableName();
-        var provider = BuildServiceProvider(retentionDays: 30);
+        var provider = BuildServiceProvider();
 
         try
         {
@@ -159,7 +159,7 @@ public class ClickhouseTtlIntegrationTests
             var engineFull = await GetEngineFull(conn, table);
 
             StringAssert.Contains(engineFull, "TTL", "Engine definition should include TTL clause.");
-            StringAssert.Contains(engineFull, "30", "TTL should be 30 days.");
+            StringAssert.Contains(engineFull, "120", "TTL should be 120 days.");
         }
         finally
         {
@@ -171,7 +171,7 @@ public class ClickhouseTtlIntegrationTests
 
     /// <summary>
     /// Scenario: Old user upgrades SDK — table exists but has NO TTL.
-    /// Expect: after Init, table gets TTL = 30 days.
+    /// Expect: after Init, table gets TTL = 120 days.
     /// </summary>
     [TestMethod]
     public async Task ExistingTable_NoTTL_GetsTTLApplied()
@@ -179,7 +179,7 @@ public class ClickhouseTtlIntegrationTests
         AssertSkipIfUnavailable();
 
         var table = UniqueTableName();
-        var provider = BuildServiceProvider(retentionDays: 30);
+        var provider = BuildServiceProvider();
 
         try
         {
@@ -212,8 +212,8 @@ public class ClickhouseTtlIntegrationTests
     }
 
     /// <summary>
-    /// Scenario: Old user upgrades SDK — table has a stale TTL (e.g. 90 days).
-    /// Expect: Init overwrites it to the new default (30 days).
+    /// Scenario: Old user upgrades SDK — table has a stale TTL (30 days).
+    /// Expect: Init overwrites it to the new default (120 days).
     /// </summary>
     [TestMethod]
     public async Task ExistingTable_DifferentTTL_GetsCorrected()
@@ -221,26 +221,26 @@ public class ClickhouseTtlIntegrationTests
         AssertSkipIfUnavailable();
 
         var table = UniqueTableName();
-        var provider = BuildServiceProvider(retentionDays: 30);
+        var provider = BuildServiceProvider();
 
         try
         {
-            // Simulate old user with 90-day TTL
+            // Simulate old user with 30-day TTL
             await provider.InitClickhouseTableAsync<TestEntity>(table, "Created", ttlColumn: "Created");
 
-            // Manually set TTL to 90 days (simulating old app)
+            // Manually set TTL to 30 days (simulating old app)
             await using (var conn = new ClickHouseConnection(_connectionString!))
             {
                 await conn.OpenAsync();
                 await using var cmd = conn.CreateCommand();
-                cmd.CommandText = $"ALTER TABLE {table} MODIFY TTL Created + INTERVAL 90 DAY";
+                cmd.CommandText = $"ALTER TABLE {table} MODIFY TTL Created + INTERVAL 30 DAY";
                 await cmd.ExecuteNonQueryAsync();
 
                 var oldEngine = await GetEngineFull(conn, table);
-                StringAssert.Contains(oldEngine, "90", "Should have 90-day TTL before correction.");
+                StringAssert.Contains(oldEngine, "30", "Should have 30-day TTL before correction.");
             }
 
-            // Upgrade: Init again (same call, same RetentionDays = 30)
+            // Upgrade: Init again (same call, default retention)
             await provider.InitClickhouseTableAsync<TestEntity>(table, "Created", ttlColumn: "Created");
 
             await using (var conn = new ClickHouseConnection(_connectionString!))
@@ -248,8 +248,8 @@ public class ClickhouseTtlIntegrationTests
                 await conn.OpenAsync();
                 var newEngine = await GetEngineFull(conn, table);
                 StringAssert.Contains(newEngine, "TTL", "TTL clause must still be present.");
-                Assert.IsFalse(newEngine.Contains("90"), "Stale 90-day TTL must be removed.");
-                StringAssert.Contains(newEngine, "30", "TTL must be corrected to 30 days.");
+                Assert.IsFalse(newEngine.Contains("toIntervalDay(30)"), "Stale 30-day TTL must be removed.");
+                StringAssert.Contains(newEngine, "120", "TTL must be corrected to 120 days.");
             }
         }
         finally
@@ -269,11 +269,11 @@ public class ClickhouseTtlIntegrationTests
         AssertSkipIfUnavailable();
 
         var table = UniqueTableName();
-        var provider = BuildServiceProvider(retentionDays: 30);
+        var provider = BuildServiceProvider();
 
         try
         {
-            // First init sets TTL to 30
+            // First init sets TTL to 120
             await provider.InitClickhouseTableAsync<TestEntity>(table, "Created", ttlColumn: "Created");
 
             string engineBefore;
@@ -281,7 +281,7 @@ public class ClickhouseTtlIntegrationTests
             {
                 await conn.OpenAsync();
                 engineBefore = await GetEngineFull(conn, table);
-                StringAssert.Contains(engineBefore, "30", "TTL should be 30 days.");
+                StringAssert.Contains(engineBefore, "120", "TTL should be 120 days.");
             }
 
             // Second init: same TTL — no-op semantically
@@ -449,7 +449,6 @@ public class ClickhouseTtlIntegrationTests
         {
             options.ConnectionString = _connectionString!;
             options.Enabled = true;
-            options.RetentionDays = 30;
             options.TableName = table;
         });
 
@@ -465,7 +464,7 @@ public class ClickhouseTtlIntegrationTests
 
             StringAssert.Contains(engineFull, "TTL", "Logging table must get TTL automatically.");
             StringAssert.Contains(engineFull, "EventTime", "Logging TTL must be on EventTime column.");
-            StringAssert.Contains(engineFull, "30", "Logging TTL must be 30 days.");
+            StringAssert.Contains(engineFull, "120", "Logging TTL must be 120 days.");
         }
         finally
         {
