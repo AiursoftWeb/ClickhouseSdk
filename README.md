@@ -9,7 +9,11 @@
 
 A high-performance, textbook-grade ClickHouse integration suite for .NET applications. It provides an effortless way to interact with ClickHouse using a "DbContext" style pattern and a high-performance logging provider for the standard Microsoft.Extensions.Logging infrastructure.
 
-## Why Aiursoft.ClickhouseSdk?
+## Overview
+
+### What is ClickHouse SDK & Logger Provider?
+
+<a name="why-aiursoftclickhousesdk"></a>
 
 ClickHouse is a column-oriented database that excels at analytical processing but requires specific patterns for optimal performance (e.g., bulk writes instead of single-row inserts). This SDK abstracts these complexities:
 
@@ -18,9 +22,9 @@ ClickHouse is a column-oriented database that excels at analytical processing bu
 3.  **Schema Evolution**: Automatically detects and adds missing columns to your tables as your data models evolve.
 4.  **Resilient Logging**: A specialized `ILogger` provider that won't block your application during log flushes.
 
----
-
 ## Installation
+
+Add the package to your .NET project:
 
 You can install the core SDK or the logger provider via NuGet:
 
@@ -32,33 +36,59 @@ dotnet add package Aiursoft.ClickhouseSdk
 dotnet add package Aiursoft.ClickhouseLoggerProvider
 ```
 
----
+Requires .NET 10 or later. Both packages reference `Aiursoft.ClickhouseSdk.Abstractions`, which contains the shared options and connection utilities. Projects that only need those abstractions can install them separately:
 
-## Configuration
-
-Both projects share a common configuration structure. You can configure them via `appsettings.json`:
-
-```json
-{
-  "Clickhouse": {
-    "ConnectionString": "Host=localhost;Protocol=http;Port=8123;Database=MyBusinessDb;User=default;Password=password",
-    "Enabled": true,
-    "TableName": "AppLogs" 
-  }
-}
+```bash
+dotnet add package Aiursoft.ClickhouseSdk.Abstractions
 ```
 
-- **ConnectionString**: Standard ClickHouse connection string.
-- **Enabled**: Global switch to enable/disable ClickHouse features.
-- **TableName**: Used by the Logger Provider to specify the target log table.
+The console-host example below also uses the standard hosting package:
 
----
+```bash
+dotnet add package Microsoft.Extensions.Hosting
+```
 
-## Project 1: Aiursoft.ClickhouseSdk (Core)
+A reachable ClickHouse server is required when database operations or logging are enabled. The library does not install a database server.
+
+## Usage
+
+After installing the logger provider and hosting package, put the Configuration JSON below in `appsettings.json` in your working directory. This complete `Program.cs` initializes the logging table and writes a sample message:
+
+```csharp
+using Aiursoft.ClickhouseLoggerProvider;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+var builder = Host.CreateApplicationBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.json", optional: false);
+builder.Logging.AddClickhouse(options =>
+{
+    builder.Configuration.GetSection("Clickhouse").Bind(options);
+});
+
+using var host = builder.Build();
+await host.Services.InitLoggingTableAsync();
+
+var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Example");
+logger.LogInformation("Hello from ClickHouse logging");
+
+// The provider flushes its buffer every two seconds.
+await Task.Delay(TimeSpan.FromSeconds(5));
+```
+
+The following examples cover the core SDK, logger integration and schema behavior in detail.
+
+### Core SDK
+
+<a name="project-1-aiursoftclickhousesdk-core"></a>
 
 The core SDK provides the base infrastructure for high-performance ClickHouse communication.
 
-### 1. Define your Entity
+<a name="1-define-your-entity"></a>
+
+**1. Define your Entity**
 
 Create a POCO class that matches your table schema.
 
@@ -72,7 +102,9 @@ public class MyEntity
 }
 ```
 
-### 2. Create your DbContext
+<a name="2-create-your-dbcontext"></a>
+
+**2. Create your DbContext**
 
 Inherit from `ClickhouseDbContext`. Use `ClickhouseSet<T>` to define your tables.
 
@@ -89,7 +121,7 @@ public class MyDbContext : ClickhouseDbContext
         // Parameter 1: Connection factory (inherited from ClickhouseDbContext)
         // Parameter 2: Table Name
         // Parameter 3: Mapper (converts your object to an object array for ClickHouse)
-        MyEntities = new ClickhouseSet<MyEntity>(GetConnection, "MyBusinessTable", entity => new object[] 
+        MyEntities = new ClickhouseSet<MyEntity>(GetConnection, "MyBusinessTable", entity => new object[]
         {
             entity.Id,
             entity.Name,
@@ -106,7 +138,9 @@ public class MyDbContext : ClickhouseDbContext
 }
 ```
 
-### 3. Registration and Initialization
+<a name="3-registration-and-initialization"></a>
+
+**3. Registration and Initialization**
 
 Register your context in `Program.cs` and initialize the schema.
 
@@ -123,12 +157,14 @@ using var host = builder.Build();
 
 // 3. Initialize the table schema on startup
 // This ensures the DB and table exist, and columns match your entity properties.
-await host.Services.InitClickhouseTableAsync<MyEntity>("MyBusinessTable", "CreatedAt"); 
+await host.Services.InitClickhouseTableAsync<MyEntity>("MyBusinessTable", "CreatedAt");
 
 await host.RunAsync();
 ```
 
-### 4. Basic Operations
+<a name="4-basic-operations"></a>
+
+**4. Basic Operations**
 
 ```csharp
 public class MyService(MyDbContext dbContext)
@@ -136,12 +172,12 @@ public class MyService(MyDbContext dbContext)
     public async Task ProcessData()
     {
         // Add to local buffer (non-blocking)
-        dbContext.MyEntities.Add(new MyEntity 
-        { 
-            Id = Guid.NewGuid(), 
-            Name = "Sample", 
-            Value = 100, 
-            CreatedAt = DateTime.UtcNow 
+        dbContext.MyEntities.Add(new MyEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = "Sample",
+            Value = 100,
+            CreatedAt = DateTime.UtcNow
         });
 
         // Bulk upload all buffered entities to ClickHouse
@@ -150,7 +186,9 @@ public class MyService(MyDbContext dbContext)
 }
 ```
 
-### 5. Query Data
+<a name="5-query-data"></a>
+
+**5. Query Data**
 
 Use `QueryAsync` and `ExecuteScalarAsync` for read scenarios. Keep values parameterized, and use `ClickhouseIdentifier.Quote` when composing trusted database, table, or column identifiers from configuration.
 
@@ -184,34 +222,40 @@ public class MyQueryService(MyDbContext dbContext, IOptionsMonitor<ClickhouseOpt
 }
 ```
 
----
+### Logger provider
 
-## Project 2: Aiursoft.ClickhouseLoggerProvider
+<a name="project-2-aiursoftclickhouseloggerprovider"></a>
 
 A high-performance provider that redirects `ILogger` output to ClickHouse. It uses an internal buffer and background worker to ensure logging doesn't slow down your request pipeline.
 
-### 1. Registration
+<a name="1-registration"></a>
+
+**1. Registration**
 
 Add the provider to your logging configuration.
 
 ```csharp
-builder.Logging.AddClickhouse(options => 
+builder.Logging.AddClickhouse(options =>
 {
     builder.Configuration.GetSection("Clickhouse").Bind(options);
 });
 ```
 
-### 2. Initialization
+<a name="2-initialization"></a>
+
+**2. Initialization**
 
 Initialize the logging table at startup.
 
 ```csharp
-// This creates the 'AppLogs' table (defined in TableName config) 
+// This creates the 'AppLogs' table (defined in TableName config)
 // using 'EventTime' as the primary sort key.
 await host.Services.InitLoggingTableAsync();
 ```
 
-### 3. Usage
+<a name="3-usage"></a>
+
+**3. Usage**
 
 Simply use the standard `ILogger` interface.
 
@@ -221,7 +265,7 @@ public class MyService(ILogger<MyService> logger)
     public void DoWork()
     {
         logger.LogInformation("Work started at {Time}", DateTime.UtcNow);
-        try 
+        try
         {
              // ...
         }
@@ -233,18 +277,20 @@ public class MyService(ILogger<MyService> logger)
 }
 ```
 
----
+### Advanced details
 
-## Advanced Details
+<a name="schema-evolution"></a>
 
-### Schema Evolution
+**Schema Evolution**
 
 The `InitClickhouseTableAsync<T>` method performs the following:
 1.  **Database Creation**: `CREATE DATABASE IF NOT EXISTS`.
 2.  **Table Creation**: `CREATE TABLE IF NOT EXISTS` using the `MergeTree` engine.
 3.  **Column Alignment**: For every property in your entity `T`, it executes `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`. This means you can add new properties to your C# class, and the SDK will automatically add the corresponding columns in ClickHouse on the next application start.
 
-### Data Types Mapping
+<a name="data-types-mapping"></a>
+
+**Data Types Mapping**
 
 The SDK automatically maps C# types to ClickHouse types:
 - `string` -> `String`
@@ -253,23 +299,65 @@ The SDK automatically maps C# types to ClickHouse types:
 - `Guid` -> `UUID`
 - `bool` -> `UInt8`
 
-### Performance Note
+<a name="performance-note"></a>
+
+**Performance Note**
 
 ClickHouse prefers large batch writes. While `ClickhouseSet<T>.Add()` is extremely fast (just adds to a local list), calling `SaveChangesAsync()` frequently with few items can be inefficient for ClickHouse. It is recommended to call `SaveChangesAsync()` periodically or after a significant number of items have been added.
 
 The `ClickhouseLoggerProvider` handles this automatically by flushing logs in the background every few seconds.
 
----
+## Configuration
 
-## How to Contribute
+Both projects share a common configuration structure. You can configure them via `appsettings.json`:
 
-We welcome contributions! Please follow these steps:
+```json
+{
+  "Clickhouse": {
+    "ConnectionString": "Host=localhost;Protocol=http;Port=8123;Database=MyBusinessDb;Username=default;Password=password",
+    "Enabled": true,
+    "TableName": "AppLogs",
+    "RetentionDays": 120
+  }
+}
+```
 
-1. Fork the repository.
-2. Create a feature branch.
-3. Ensure all code passes `lint.sh` and all tests pass.
-4. Submit a Pull Request.
+- **ConnectionString**: Standard ClickHouse connection string.
+- **Enabled**: Global switch to enable/disable ClickHouse features.
+- **TableName**: Used by the Logger Provider to specify the target log table.
+
+**Defaults and registration**
+
+`ClickhouseOptions` defaults to an empty `ConnectionString`, `TableName = "AppLogs"`, `Enabled = false` and `RetentionDays = 120`. The example deliberately enables the integration. Set a connection string for your server and use the driver's `Username` key for authentication.
+
+The core context binds `IOptionsMonitor<ClickhouseOptions>`. `AddClickhouse` binds the derived `ClickhouseLoggingOptions` separately; configure both registrations when using both the core context and logging provider. The examples use singleton contexts; do not dispose an injected shared context from an individual operation.
+
+**Retention and schema initialization**
+
+`InitLoggingTableAsync()` uses `EventTime` for TTL management. `InitClickhouseTableAsync<T>()` only applies TTL when a `ttlColumn` is explicitly supplied and `RetentionDays` is positive. Set `RetentionDays` to `0` to skip TTL management; this does not remove a TTL already installed in ClickHouse. Initialization can create databases and tables, add missing columns, and update TTL, so the configured account needs the corresponding permissions. Initialization errors are logged; inspect those logs rather than treating completion alone as proof that the schema exists.
+
+## Development
+
+Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+
+From the repository root, restore, build and test:
+
+```bash
+dotnet restore Aiursoft.ClickhouseSdk.sln
+dotnet build Aiursoft.ClickhouseSdk.sln --no-restore
+dotnet test Aiursoft.ClickhouseSdk.sln --no-restore
+```
+
+Run `./lint.sh` for the existing static checks.
+
+## How to contribute
+
+There are many ways to contribute to the project: logging bugs, submitting pull requests, reporting issues, and creating suggestions.
+
+Even if you have push rights on the repository, you should create a personal fork and create feature branches there when you need them. This keeps the main repository clean and your workflow cruft out of sight.
+
+We're also interested in your feedback on the future of this project. You can submit a suggestion or feature request through the issue tracker. To make this process more effective, we're asking that these include more information to help define them more clearly.
 
 ## License
 
-This project is licensed under the MIT License.
+Licensed under the [MIT License](https://github.com/AiursoftWeb/clickhousesdk/blob/master/LICENSE).
